@@ -151,7 +151,7 @@
   const SUPABASE_ANON_KEY = 'sb_publishable_ulGHhf0MuqqxwMiQh8SYMg_8BrLaElD';
   // ---------------------------------------------------------------------
 
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const app = document.getElementById('app');
 
   const params = new URLSearchParams(window.location.search);
@@ -170,7 +170,7 @@
       return;
     }
 
-    const { data: unidade, error } = await supabase
+    const { data: unidade, error } = await sb
       .from('unidades')
       .select('id, nome, leitos_totais')
       .eq('id', unidadeId)
@@ -181,7 +181,7 @@
       return;
     }
 
-    const { data: ultimo } = await supabase
+    const { data: ultimo } = await sb
       .from('registros_ocupacao')
       .select('pacientes_internados, registrado_em')
       .eq('unidade_id', unidadeId)
@@ -267,7 +267,7 @@
       btn.disabled = true;
       btn.textContent = 'Enviando…';
 
-      const { error } = await supabase.from('registros_ocupacao').insert({
+      const { error } = await sb.from('registros_ocupacao').insert({
         unidade_id: unidade.id,
         pacientes_internados: val,
         registrado_por: document.getElementById('nome').value || null
