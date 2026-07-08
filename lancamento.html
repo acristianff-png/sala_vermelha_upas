@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lançamento — Sala Vermelha</title>
+<style>
+  :root{
+    --bg: #f5f7f8;
+    --panel: #ffffff;
+    --field: #f5f7f8;
+    --border: #e1e7ea;
+    --text: #1c2b33;
+    --text-dim: #6d7c85;
+    --accent: #0d7a8c;
+    --accent-dark: #0a5f6e;
+
+    --verde: #3fa869;
+    --amarelo: #e0b62c;
+    --vermelho: #d84b3e;
+    --preto: #7a1f1a;
+  }
+  * { box-sizing: border-box; }
+  body{
+    margin:0;
+    font-family: -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding: 32px 16px 60px;
+  }
+  .card{
+    width:100%;
+    max-width: 440px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px 24px;
+    box-shadow: 0 1px 3px rgba(28,43,51,.04);
+  }
+  .eyebrow{
+    font-size: 12px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 0 0 6px;
+  }
+  h1{
+    font-size: 21px;
+    margin: 0 0 20px;
+    line-height: 1.25;
+    color: var(--text);
+  }
+  .field{ margin-bottom: 18px; }
+  label{
+    display:block;
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  input[type=number], input[type=text]{
+    width:100%;
+    padding: 14px 16px;
+    font-size: 22px;
+    background: var(--field);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    -moz-appearance: textfield;
+  }
+  input[type=text]{ font-size:16px; }
+  input:focus{ outline: 2px solid var(--accent); outline-offset: 1px; }
+  .stat-row{
+    display:flex;
+    gap: 10px;
+    margin: 4px 0 22px;
+  }
+  .stat{
+    flex:1;
+    background: var(--field);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    text-align:center;
+  }
+  .stat .n{ font-size: 22px; font-weight:700; color: var(--text); }
+  .stat .l{ font-size: 10.5px; color: var(--text-dim); text-transform:uppercase; letter-spacing:.05em; margin-top:2px;}
+  .nivel-badge{
+    display:inline-block;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .alerta-vaga{
+    font-size:12.5px;
+    color:#97600d;
+    background:#fdf1de;
+    border-radius:8px;
+    padding:8px 10px;
+    margin-top:10px;
+  }
+  button{
+    width:100%;
+    padding: 16px;
+    font-size: 16px;
+    font-weight:700;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor:pointer;
+  }
+  button:hover{ background: var(--accent-dark); }
+  button:disabled{ opacity:.5; cursor:not-allowed; }
+  .msg{
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    display:none;
+  }
+  .msg.ok{ background: #eef8f1; border:1px solid var(--verde); color:#1f7a45; display:block; }
+  .msg.err{ background: #fdedec; border:1px solid var(--vermelho); color:#a33025; display:block; }
+  .loading, .notfound{ text-align:center; color: var(--text-dim); padding: 40px 10px; }
+  .last{
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 18px;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="app">
+  <div class="loading">Carregando unidade…</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // ---------------------------------------------------------------------
+  // CONFIGURE AQUI
+  const SUPABASE_URL = 'https://SEU-PROJETO.supabase.co';
+  const SUPABASE_ANON_KEY = 'SUA-ANON-KEY';
+  // ---------------------------------------------------------------------
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const app = document.getElementById('app');
+
+  const params = new URLSearchParams(window.location.search);
+  const unidadeId = params.get('u');
+
+  function nivel(pct) {
+    if (pct <= 50) return { key: 'verde', label: 'Verde', color: 'var(--verde)' };
+    if (pct <= 69) return { key: 'amarelo', label: 'Amarelo', color: 'var(--amarelo)' };
+    if (pct <= 84) return { key: 'vermelho', label: 'Vermelho', color: 'var(--vermelho)' };
+    return { key: 'preto', label: 'Preto', color: 'var(--preto)' };
+  }
+
+  async function init() {
+    if (!unidadeId) {
+      app.innerHTML = `<div class="notfound">Link inválido. Peça à coordenação o link correto para sua unidade (deve conter <code>?u=</code>).</div>`;
+      return;
+    }
+
+    const { data: unidade, error } = await supabase
+      .from('unidades')
+      .select('id, nome, leitos_totais')
+      .eq('id', unidadeId)
+      .single();
+
+    if (error || !unidade) {
+      app.innerHTML = `<div class="notfound">Unidade não encontrada. Verifique o link com a coordenação.</div>`;
+      return;
+    }
+
+    const { data: ultimo } = await supabase
+      .from('registros_ocupacao')
+      .select('pacientes_internados, registrado_em')
+      .eq('unidade_id', unidadeId)
+      .order('registrado_em', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    render(unidade, ultimo);
+  }
+
+  function render(unidade, ultimo) {
+    app.innerHTML = `
+      <p class="eyebrow">Sala Vermelha · PAP DAUE 018</p>
+      <h1>${unidade.nome}</h1>
+
+      <div class="field">
+        <label for="pacientes">Pacientes internados na Sala Vermelha</label>
+        <input type="number" id="pacientes" min="0" max="${unidade.leitos_totais}" inputmode="numeric"
+               value="${ultimo ? ultimo.pacientes_internados : ''}" placeholder="0">
+      </div>
+
+      <div class="stat-row">
+        <div class="stat">
+          <div class="n">${unidade.leitos_totais}</div>
+          <div class="l">Leitos totais</div>
+        </div>
+        <div class="stat">
+          <div class="n" id="vagas-out">–</div>
+          <div class="l">Vagas</div>
+        </div>
+        <div class="stat">
+          <div class="n" id="pct-out">–</div>
+          <div class="l">Ocupação</div>
+        </div>
+      </div>
+
+      <div id="nivel-out" style="text-align:center; margin-bottom:20px;"></div>
+
+      <div class="field">
+        <label for="nome">Seu nome / matrícula (opcional)</label>
+        <input type="text" id="nome" placeholder="Ex: João, enfermeiro NIR">
+      </div>
+
+      <button id="btn-enviar">Registrar ocupação</button>
+      <div class="msg" id="msg"></div>
+
+      ${ultimo ? `<div class="last">Último registro: ${new Date(ultimo.registrado_em).toLocaleString('pt-BR')}</div>` : ''}
+    `;
+
+    const input = document.getElementById('pacientes');
+    const vagasOut = document.getElementById('vagas-out');
+    const pctOut = document.getElementById('pct-out');
+    const nivelOut = document.getElementById('nivel-out');
+    const btn = document.getElementById('btn-enviar');
+    const msg = document.getElementById('msg');
+
+    function atualizarPreview() {
+      let v = parseInt(input.value, 10);
+      if (isNaN(v) || v < 0) v = 0;
+      if (v > unidade.leitos_totais) v = unidade.leitos_totais;
+      const vagas = unidade.leitos_totais - v;
+      const pct = Math.round((v / unidade.leitos_totais) * 100);
+      const n = nivel(pct);
+      vagasOut.textContent = vagas;
+      pctOut.textContent = pct + '%';
+      nivelOut.innerHTML = `<span class="nivel-badge" style="background:${n.color}">Nível ${n.label}</span>`;
+      if (vagas === 1) {
+        nivelOut.innerHTML += `<div class="alerta-vaga">
+          ⚠ Só resta 1 vaga — não indicar como referência para outras regionais (item 4.2 do PAP).</div>`;
+      }
+    }
+
+    input.addEventListener('input', atualizarPreview);
+    if (input.value !== '') atualizarPreview();
+
+    btn.addEventListener('click', async () => {
+      const val = parseInt(input.value, 10);
+      if (isNaN(val) || val < 0 || val > unidade.leitos_totais) {
+        msg.className = 'msg err';
+        msg.textContent = `Informe um número entre 0 e ${unidade.leitos_totais}.`;
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+
+      const { error } = await supabase.from('registros_ocupacao').insert({
+        unidade_id: unidade.id,
+        pacientes_internados: val,
+        registrado_por: document.getElementById('nome').value || null
+      });
+
+      if (error) {
+        msg.className = 'msg err';
+        msg.textContent = 'Erro ao enviar. Tente novamente ou informe por telefone conforme item 5 (Contingência) do PAP.';
+        btn.disabled = false;
+        btn.textContent = 'Registrar ocupação';
+      } else {
+        msg.className = 'msg ok';
+        msg.textContent = 'Registrado com sucesso. Obrigado!';
+        btn.textContent = 'Registrado ✓';
+        setTimeout(() => { btn.disabled = false; btn.textContent = 'Registrar ocupação'; }, 2500);
+      }
+    });
+  }
+
+  init();
+</script>
+</body>
+</html>
